@@ -1,0 +1,5 @@
+[Launch-and-attach]
+-f
+--import-source	= yes
+--section = LoadMetrics,StoreMetrics,SchedulerStats,WarpStateStats,MemoryWorkloadAnalysis,MemoryWorkloadAnalysis_Chart,MemoryWorkloadAnalysis_Tables,SpeedOfLight,InstructionStats,ComputeWorkloadAnalysis,SpeedOfLight_RooflineChart,SourceCounters
+--section-folder-recursive = /workspaces/CudaGEMMOptimization/profiling/sections/

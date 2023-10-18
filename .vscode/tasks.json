@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake Build",
+            "type": "shell",
+            "command": "cmake -S . -B ./build && cd ./build && make",
+            "group": "build"
+        },
+        {
+            "label": "Metric Profile Section for GEMM Compute Load",
+            "command": "ncu",
+            "args": [
+                "-f",
+                "-o",
+                "./profiling/profiles/${input:executable}",
+                "--config-file",
+                "on",
+                "--replay-mode",
+                "kernel",
+                "--config-file-path",
+                "./profiling/configs/sgemm.ncu-cfg",
+                "./build/${input:executable}"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "CMake Build"
+            ]
+        },
+    ],
+    "inputs": [
+        {
+            "type": "pickString",
+            "id": "executable",
+            "description": "select executable for profile",
+            "options": [
+                "naiveSGEMM",
+                "coalesceMemoryAccess",
+                "sharedMemBlockSGEMM",
+                "sgemm1DBlockTiling",
+                "sgemm2DBlockTiling",
+                "sgemmVectorize"
+            ]
+            
+        }
+    ]
+}
