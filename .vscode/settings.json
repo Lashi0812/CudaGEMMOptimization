@@ -1,3 +1,9 @@
 {
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "files.associations": {
+        "*.html": "jinja-html",
+        "*.jinja2": "django-html",
+        "iostream": "cpp",
+        "istream": "cpp"
+    }
 }

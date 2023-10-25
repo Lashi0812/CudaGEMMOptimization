@@ -110,7 +110,7 @@ int main()
 
     const uint BM = 128;
     const uint BN = 128;
-    const uint BK = 8;
+    const uint BK = 16;
     const uint TM = 8;
     const uint TN = 8;
     dim3 block((BM * BN) / (TM * TN));

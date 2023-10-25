@@ -39,7 +39,8 @@
                 "sharedMemBlockSGEMM",
                 "sgemm1DBlockTiling",
                 "sgemm2DBlockTiling",
-                "sgemmVectorize"
+                "sgemmVectorize",
+                "loadToSMEM"
             ]
             
         }
