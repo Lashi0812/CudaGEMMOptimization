@@ -5,5 +5,8 @@
         "*.jinja2": "django-html",
         "iostream": "cpp",
         "istream": "cpp"
-    }
+    },
+    "cSpell.ignoreWords": [
+        "WNITER"
+    ]
 }

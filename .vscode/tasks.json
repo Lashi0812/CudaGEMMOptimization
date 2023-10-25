@@ -40,7 +40,8 @@
                 "sgemm1DBlockTiling",
                 "sgemm2DBlockTiling",
                 "sgemmVectorize",
-                "loadToSMEM"
+                "loadToSMEM",
+                "loadToReg"
             ]
             
         }
