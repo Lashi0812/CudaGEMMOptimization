@@ -13,7 +13,7 @@ __global__ void sgemmVectorize(float *__restrict__ A, float *__restrict__ B, flo
     A += blockIdx.y * BM * K;
     B += blockIdx.x * BN;
     C += blockIdx.y * BM * N + blockIdx.x * BN;
-    
+
     // indexing
     const uint threadRow = threadIdx.x / (BN / TN);
     const uint threadCol = threadIdx.x % (BN / TN);
@@ -71,23 +71,11 @@ __global__ void sgemmVectorize(float *__restrict__ A, float *__restrict__ B, flo
     {
         for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4)
         {
-            // load C vector into registers
-            float4 tmp = reinterpret_cast<float4 *>(
-                &C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN])[0];
-            // perform GEMM update in reg
-            tmp.x = regC[resIdxM * TN + resIdxN];
-            tmp.y = regC[resIdxM * TN + resIdxN + 1];
-            tmp.z = regC[resIdxM * TN + resIdxN + 2];
-            tmp.w = regC[resIdxM * TN + resIdxN + 3];
-            // write back
             reinterpret_cast<float4 *>(
-                &C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN])[0] =
-                tmp;
+                &C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN])[0] = reinterpret_cast<float4 *>(&regC[resIdxM * TN + resIdxN])[0];
         }
     }
 }
-
-
 
 int main()
 {
@@ -110,7 +98,7 @@ int main()
 
     const uint BM = 128;
     const uint BN = 128;
-    const uint BK = 16;
+    const uint BK = 8;
     const uint TM = 8;
     const uint TN = 8;
     dim3 block((BM * BN) / (TM * TN));
@@ -119,6 +107,7 @@ int main()
     cudaMemset(d_c, 0, c.element_size() * c.numel());
     sgemmVectorize<BM, BN, BK, TM, TN><<<grid, block>>>(d_a, d_b, d_c, M, N, K);
     cudaMemcpy(c.data_ptr(), d_c, c.element_size() * c.numel(), cudaMemcpyDeviceToHost);
+    std::cout << (c.allclose(a.matmul(b)) ? "SUCCESS" : "FAIL") << std::endl;
 
     cudaFree(d_a);
     cudaFree(d_b);

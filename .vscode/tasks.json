@@ -41,7 +41,8 @@
                 "sgemm2DBlockTiling",
                 "sgemmVectorize",
                 "loadToSMEM",
-                "loadToReg"
+                "loadToReg",
+                "warpTiling"
             ]
             
         }

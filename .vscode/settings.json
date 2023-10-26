@@ -4,9 +4,12 @@
         "*.html": "jinja-html",
         "*.jinja2": "django-html",
         "iostream": "cpp",
-        "istream": "cpp"
+        "istream": "cpp",
+        "ostream": "cpp"
     },
     "cSpell.ignoreWords": [
-        "WNITER"
+        "GMEM",
+        "WNITER",
+        "WSUBNSW"
     ]
 }
