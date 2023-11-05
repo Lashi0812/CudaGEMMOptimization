@@ -10,6 +10,7 @@
     "cSpell.ignoreWords": [
         "GMEM",
         "WNITER",
-        "WSUBNSW"
+        "WSUBNSW",
+        "endforeach"
     ]
 }
