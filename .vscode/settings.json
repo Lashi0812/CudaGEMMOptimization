@@ -8,6 +8,8 @@
         "ostream": "cpp"
     },
     "cSpell.ignoreWords": [
+        "BDIMX",
+        "BDIMY",
         "GMEM",
         "WNITER",
         "WSUBNSW",

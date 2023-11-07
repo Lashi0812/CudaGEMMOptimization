@@ -7,6 +7,7 @@ find_package(CUDAToolkit REQUIRED)
 set(TORCH_CUDA_ARCH_LIST 8.9)
 find_package(Torch REQUIRED)
 
+include_directories("./third-party/cutlass/include")
 file(GLOB CUDA_SOURCE_FILES "./csrc/*.cu")
 foreach(CUDA_SOURCE_FILE ${CUDA_SOURCE_FILES})
     # Extract the filename without the extension

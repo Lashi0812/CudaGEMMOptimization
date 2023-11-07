@@ -32,6 +32,17 @@
             "group": "build",
             "dependsOn": [
                 "CMake: build"
+            ],
+            "detail": "Select Executable to Profile",
+        },
+        {
+            "label": "Run Executable",
+            "type": "shell",
+            "command": "./build/${input:executable}",
+            "group": "build",
+			"detail": "Select Executable to Run",
+            "dependsOn": [
+                "CMake: build"
             ]
         },
     ],
