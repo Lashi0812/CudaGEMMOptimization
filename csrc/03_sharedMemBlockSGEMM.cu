@@ -42,7 +42,7 @@ template <typename ALayout, typename ABlockLayout, typename AThreadLayout,
           typename BLayout, typename BBlockLayout, typename BThreadLayout,
           typename CLayout, typename CBlockLayout, typename CThreadLayout,
           typename T>
-__global__ static __launch_bounds__(decltype(size(CBlockLayout{}))::value) void sgemm_share_mem_block_using_cute(T const *A, T const *B, T *C,
+__global__ static __launch_bounds__(decltype(size(CBlockLayout{}))::value) void sgemm_share_mem_block_using_cute(T const *__restrict__ A, T const *__restrict__ B, T *C,
                                                                                                                  ALayout mA, ABlockLayout bA, AThreadLayout tA,
                                                                                                                  BLayout mB, BBlockLayout bB, BThreadLayout tB,
                                                                                                                  CLayout mC, CBlockLayout bC, CThreadLayout tC)
@@ -86,109 +86,91 @@ __global__ static __launch_bounds__(decltype(size(CBlockLayout{}))::value) void 
     auto k_tile_max = size<2>(bAgA);
     auto k_max = size<2>(needA);
 
-    if (thread0())
-    {
-        print("C Info : \n");
-        print("\t\t Tensor layout in global mem: ");
-        print(mC);
-        print("\n");
-        print("\t\t Tensor layout in rmem: ");
-        print(rC);
-        print("\n");
-        print("\t\tWork for the block : ");
-        print(gC);
-        print("\n");
-        print("\t\tWork for the thread : ");
-        print(bCgC);
-        print("\n");
+    // if (thread0())
+    // {
+    //     print("C Info : \n");
+    //     print("\t\t Tensor layout in global mem: ");
+    //     print(mC);
+    //     print("\n");
+    //     print("\t\t Tensor layout in rmem: ");
+    //     print(rC);
+    //     print("\n");
+    //     print("\t\tWork for the block : ");
+    //     print(gC);
+    //     print("\n");
+    //     print("\t\tWork for the thread : ");
+    //     print(bCgC);
+    //     print("\n");
 
-        print("A Info : \n");
-        print("\t\t Tensor layout in global mem: ");
-        print(mA);
-        print("\n");
-        print("\t\t Tensor layout in smem: ");
-        print(sA);
-        print("\n");
-        print("\t\t Tensor layout in rmem: ");
-        print(rA);
-        print("\n");
-        print("\t\tCopy Work for the block : ");
-        print(gA);
-        print("\n");
-        print("\t\tCopy Work for the thread from Global: ");
-        print(bAgA);
-        print("\n");
-        print("\t\tCopy Work for the thread to shared : ");
-        print(bAsA);
-        print("\n");
-        print("\t\tElement needed for dot product ");
-        print(needA);
-        print("\n");
+    //     print("A Info : \n");
+    //     print("\t\t Tensor layout in global mem: ");
+    //     print(mA);
+    //     print("\n");
+    //     print("\t\t Tensor layout in smem: ");
+    //     print(sA);
+    //     print("\n");
+    //     print("\t\t Tensor layout in rmem: ");
+    //     print(rA);
+    //     print("\n");
+    //     print("\t\tCopy Work for the block : ");
+    //     print(gA);
+    //     print("\n");
+    //     print("\t\tCopy Work for the thread from Global: ");
+    //     print(bAgA);
+    //     print("\n");
+    //     print("\t\tCopy Work for the thread to shared : ");
+    //     print(bAsA);
+    //     print("\n");
+    //     print("\t\tElement needed for dot product ");
+    //     print(needA);
+    //     print("\n");
 
-        print("B Info : \n");
-        print("\t\t Tensor layout in global mem: ");
-        print(mB);
-        print("\n");
-        print("\t\t Tensor layout in smem: ");
-        print(sB);
-        print("\n");
-        print("\t\t Tensor layout in rmem: ");
-        print(rB);
-        print("\n");
-        print("\t\tCopy Work for the block : ");
-        print(gB);
-        print("\n");
-        print("\t\tCopy Work for the thread from Global: ");
-        print(bBgB);
-        print("\n");
-        print("\t\tCopy Work for the thread to shared : ");
-        print(bBsB);
-        print("\n");
-        print("\t\tElement needed for dot product ");
-        print(needB);
-        print("\n");
-    }
+    //     print("B Info : \n");
+    //     print("\t\t Tensor layout in global mem: ");
+    //     print(mB);
+    //     print("\n");
+    //     print("\t\t Tensor layout in smem: ");
+    //     print(sB);
+    //     print("\n");
+    //     print("\t\t Tensor layout in rmem: ");
+    //     print(rB);
+    //     print("\n");
+    //     print("\t\tCopy Work for the block : ");
+    //     print(gB);
+    //     print("\n");
+    //     print("\t\tCopy Work for the thread from Global: ");
+    //     print(bBgB);
+    //     print("\n");
+    //     print("\t\tCopy Work for the thread to shared : ");
+    //     print(bBsB);
+    //     print("\n");
+    //     print("\t\tElement needed for dot product ");
+    //     print(needB);
+    //     print("\n");
+    // }
 
     for (int k_tile{0}; k_tile < k_tile_max; ++k_tile)
     {
-        // copy_if(TrivialPredTensor{}, bAgA(_, _, k_tile), bAsA);
-        // copy_if(TrivialPredTensor{}, bBgB(_, _, k_tile), bBsB);
 
         copy(bAgA(_, _, k_tile), bAsA);
         copy(bBgB(_, _, k_tile), bBsB);
-        cp_async_fence();
+        // cp_async_fence();
         cp_async_wait<0>();
 
-        // for (int i{0}; i < size(bA); ++i)
-        // {
-        //     bAsA(i) = bAgA(_, _, k_tile)(i);
-        //     bBsB(i) = bBgB(_, _, k_tile)(i);
-        // }
         __syncthreads();
 
         for (int k{0}; k < k_max; ++k)
         {
-            // copy_if(TrivialPredTensor{}, needA(_, _, k), rA);
-            // copy_if(TrivialPredTensor{}, needB(_, _, k), rB);
-
             copy(needA(_, _, k), rA);
             copy(needB(_, _, k), rB);
 
-            // for (int i{0}; i < size(tA); ++i)
-            // {
-            //     rA(i) = needA(_, _, k)(i);
-            //     rB(i) = needB(_, _, k)(i);
-            // }
-
             regC += regA * regB;
+
+            // regC += needA(_,_,k)(0) * needB(_,_,k)(0) ;
         }
         __syncthreads();
     }
     copy(rC, bCgC);
-    // for (int i{0}; i < size(rC); ++i)
-    // {
-    //     bCgC(i) = rC(i);
-    // }
 }
 
 void host_sgemm_shared_mem_block(at::Tensor &a, at::Tensor &b, at::Tensor &c,
@@ -212,9 +194,9 @@ void host_sgemm_shared_mem_block_using_cute(at::Tensor &a, at::Tensor &b, at::Te
     auto N = int(n);
     auto K = int(k);
 
-    auto BM = Int<8>{};
-    auto BN = Int<8>{};
-    auto BK = Int<8>{};
+    auto BM = Int<16>{};
+    auto BN = Int<16>{};
+    auto BK = Int<16>{};
 
     // layouts for C
     auto mC = make_layout(make_shape(M, N));
@@ -235,44 +217,19 @@ void host_sgemm_shared_mem_block_using_cute(at::Tensor &a, at::Tensor &b, at::Te
     dim3 grid(ceil_div(size(M), BM),
               ceil_div(size(N), BN));
 
-    std::cout << block << std::endl;
-    std::cout << grid << std::endl;
-    
     c.zero_();
-    cudaMemset(d_c, 0, c.element_size() * c.numel()); 
+    cudaMemset(d_c, 0, c.element_size() * c.numel());
     sgemm_share_mem_block_using_cute<<<grid, block>>>(d_a, d_b, d_c,
                                                       mA, bA, tA,
                                                       mB, bB, tB,
                                                       mC, bC, tC);
     cudaMemcpy(c.data_ptr(), d_c, c.element_size() * c.numel(), cudaMemcpyDeviceToHost);
     std::cout << (c.allclose(a.matmul(b)) ? "Cute SMEM Success" : "Cute SMEM Failed") << std::endl;
-
-    auto org_ans = a.matmul(b);
-    auto failed_index = (at::isclose(c, a.matmul(b)) == 0);
-    auto non_zero = failed_index.nonzero();
-    auto uni_row = at::_unique2(non_zero.index({at::indexing::Slice(at::indexing::None), at::indexing::Slice(0, 1)}), true, false, true);
-    auto uni_col = at::_unique2(non_zero.index({at::indexing::Slice(at::indexing::None), at::indexing::Slice(1)}), true, false, true);
-    auto uni_row_tensor = at::stack(at::TensorList({get<0>(uni_row), get<2>(uni_row)}), 1);
-    auto uni_col_tensor = at::stack(at::TensorList({get<0>(uni_col), get<2>(uni_col)}), 1);
-
-    std::cout << at::stack(at::TensorList({non_zero.index({at::indexing::Slice(at::indexing::None), at::indexing::Slice(0, 1)}).squeeze(),
-                                           non_zero.index({at::indexing::Slice(at::indexing::None), at::indexing::Slice(1)}).squeeze(),
-                                           org_ans.index({failed_index}).squeeze(), c.index({failed_index}).squeeze(),
-                                           (org_ans.index({failed_index}) - c.index({failed_index})).squeeze()}),
-                           1)
-              << std::endl;
-
-    std::cout << uni_row_tensor << std::endl;
-    std::cout << uni_col_tensor << std::endl;
-
-    
-    std::cout << at::isclose(c, a.matmul(b)).count_nonzero() << std::endl;
-    std::cout << c.numel() - at::isclose(c, a.matmul(b)).count_nonzero() << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
-    int mat_size{192};
+    int mat_size{4096};
     if (argc >= 2)
     {
         mat_size = atoi(argv[1]);
@@ -280,15 +237,10 @@ int main(int argc, char *argv[])
     int M = mat_size;
     int K = mat_size;
     int N = mat_size;
-    at::manual_seed(42);
 
     auto a = at::rand({M, K}, at::TensorOptions().dtype(at::kFloat));
     auto b = at::rand({K, N}, at::TensorOptions().dtype(at::kFloat));
     auto c = at::zeros({M, N}, at::TensorOptions().dtype(at::kFloat));
-
-    // auto a = at::fill(at::zeros({M, N}, at::TensorOptions().dtype(at::kFloat)), 0.5);
-    // auto b = at::fill(at::zeros({K, N}, at::TensorOptions().dtype(at::kFloat)), 0.5);
-    // auto c = at::zeros({M, N}, at::TensorOptions().dtype(at::kFloat));
 
     // allocate and copy to device
     auto nBytes = a.element_size() * a.numel();
@@ -300,10 +252,7 @@ int main(int argc, char *argv[])
     cudaMemcpy(d_a, a.data_ptr(), nBytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, b.data_ptr(), nBytes, cudaMemcpyHostToDevice);
 
-    c = a.matmul(b);
-    cudaMemcpy(d_c, c.data_ptr(), nBytes, cudaMemcpyHostToDevice);
-
-    // host_sgemm_shared_mem_block(a, b, c, d_a, d_b, d_c, M, N, K);
+    host_sgemm_shared_mem_block(a, b, c, d_a, d_b, d_c, M, N, K);
     host_sgemm_shared_mem_block_using_cute(a, b, c, d_a, d_b, d_c, M, N, K);
 
     cudaFree(d_a);
