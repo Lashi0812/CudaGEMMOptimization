@@ -152,10 +152,16 @@ __global__ static __launch_bounds__(decltype(size(CBlockLayout{}))::value) void 
     for (int k_tile{0}; k_tile < k_tile_max; ++k_tile)
     {
 
-        copy(bAgA(_, _, k_tile), bAsA);
-        copy(bBgB(_, _, k_tile), bBsB);
-        // cp_async_fence();
-        cp_async_wait<0>();
+        // copy(bAgA(_, _, k_tile), bAsA);
+        // copy(bBgB(_, _, k_tile), bBsB);
+        // // cp_async_fence();
+        // cp_async_wait<0>();
+
+        for (int i{0}; i < size(bA); ++i)
+        {
+            bAsA(i) = bAgA(_, _, k_tile)(i);
+            bBsB(i) = bBgB(_, _, k_tile)(i);
+        }
 
         __syncthreads();
 
