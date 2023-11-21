@@ -11,7 +11,6 @@ __global__ void sgemm2DBlockTiling(const float *__restrict__ A, const float *__r
     // so each block need 2kb of shared mem
     __shared__ float AS[BM * BK];
     __shared__ float BS[BK * BN];
-    
 
     const int threadCol = threadIdx.x % (BN / TN);
     const int threadRow = threadIdx.x / (BN / TN);
@@ -36,7 +35,6 @@ __global__ void sgemm2DBlockTiling(const float *__restrict__ A, const float *__r
     float regA[TM] = {0.0f};
     float regB[TN] = {0.0f};
     float regC[TM * TN] = {0.0f};
-    
 
     for (uint blkIdx{0}; blkIdx < K; blkIdx += BK)
     {
@@ -87,7 +85,23 @@ __global__ void sgemm2DBlockTiling(const float *__restrict__ A, const float *__r
             C[(threadRow * TM + row) * N + threadCol * TN + col] = regC[row * TN + col];
 }
 
+void host_sgemm2DBlockTiling(at::Tensor &a, at::Tensor &b, at::Tensor &c,
+                             float *d_a, float *d_b, float *d_c,
+                             int M, int N, int K)
+{
+    const uint BM = 128;
+    const uint BN = 128;
+    const uint BK = 8;
+    const uint TM = 8;
+    const uint TN = 8;
+    dim3 block((BM * BN) / (TM * TN));
+    dim3 grid5(CEIL_DIV(M, BM), CEIL_DIV(N, BN));
 
+    cudaMemset(d_c, 0, c.element_size() * c.numel());
+    sgemm2DBlockTiling<BM, BN, BK, TM, TN><<<grid5, block>>>(d_a, d_b, d_c, M, N, K);
+    cudaMemcpy(c.data_ptr(), d_c, c.element_size() * c.numel(), cudaMemcpyDeviceToHost);
+    std::cout << (c.allclose(a.matmul(b)) ? "SMEM 2D Success" : "SMEM 2D Failed") << std::endl;
+}
 
 int main()
 {
@@ -108,19 +122,7 @@ int main()
     cudaMemcpy(d_a, a.data_ptr(), nBytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, b.data_ptr(), nBytes, cudaMemcpyHostToDevice);
 
-    
-    const uint BM = 128;
-    const uint BN = 128;
-    const uint BK = 8;
-    const uint TM = 8;
-    const uint TN = 8;
-    dim3 block((BM * BN) / (TM * TN));
-    dim3 grid5(CEIL_DIV(M, BM), CEIL_DIV(N, BN));
-
-    cudaMemset(d_c, 0, c.element_size() * c.numel());
-    sgemm2DBlockTiling<BM, BN, BK, TM, TN><<<grid5, block>>>(d_a, d_b, d_c, M, N, K);
-    cudaMemcpy(c.data_ptr(), d_c, c.element_size() * c.numel(), cudaMemcpyDeviceToHost);
-
+    host_sgemm2DBlockTiling(a, b, c, d_a, d_b, d_c, M, N, K);
 
     cudaFree(d_a);
     cudaFree(d_b);
