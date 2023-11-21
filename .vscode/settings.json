@@ -91,6 +91,7 @@
         "WNITER",
         "WSUBNSW",
         "endforeach",
+        "hier",
         "rmem"
     ]
 }
