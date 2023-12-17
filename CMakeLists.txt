@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.26)
 project(GEMM CUDA CXX)
 set(CMAKE_PREFIX_PATH /root/miniconda3/envs/nlp/lib/python3.11/site-packages/torch/share/cmake)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
 
 
 find_package(CUDAToolkit REQUIRED)
