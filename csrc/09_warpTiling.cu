@@ -7,10 +7,10 @@ const int WARPSIZE = 32;
 namespace wt {
 template <const uint BM, const uint BN, const uint BK, const uint strideA, const uint strideB>
 __device__ void loadFromGMEM(
-  float *chunkA,
-  float *chunkB,
-  float *AS,
-  float *BS,
+  float     *chunkA,
+  float     *chunkB,
+  float     *AS,
+  float     *BS,
   const uint K,
   const uint N,
   const uint innerRowA,
@@ -49,11 +49,11 @@ template <
   const uint TM,
   const uint TN>
 __device__ void processFromSMEM(
-  float *regM,
-  float *regN,
-  float *threadResults,
-  float *AS,
-  float *BS,
+  float     *regM,
+  float     *regN,
+  float     *threadResults,
+  float     *AS,
+  float     *BS,
   const uint warpRow,
   const uint warpCol,
   const uint threadRowInWarp,
@@ -109,7 +109,7 @@ template <
 __global__ void __launch_bounds__(N_THREADS) warpTile(
   float *__restrict__ A,
   float *__restrict__ B,
-  float *C,
+  float     *C,
   const uint M,
   const uint N,
   const uint K) {
@@ -121,8 +121,8 @@ __global__ void __launch_bounds__(N_THREADS) warpTile(
 
     // size of warp subtile
     constexpr uint WMITER = (WM * WN) / (WARPSIZE * TM * TN * WNITER);
-    const uint WSUBM = WM / WMITER;
-    const uint WSUBN = WN / WNITER;
+    const uint     WSUBM  = WM / WMITER;
+    const uint     WSUBN  = WN / WNITER;
 
     // thread arrangement within the warp subtile
     const uint threadIdxInWarp = threadIdx.x % WARPSIZE;
@@ -142,18 +142,18 @@ __global__ void __launch_bounds__(N_THREADS) warpTile(
 
     // thread arrangement for moving the A block tile from global mem to shared mem
     // change A/(B/C) into (A*C)/B
-    const uint innerRowA = threadIdx.x / (BK / 4);
-    const uint innerColA = threadIdx.x % (BK / 4);
-    constexpr uint strideA = (N_THREADS * 4) / BK;
+    const uint     innerRowA = threadIdx.x / (BK / 4);
+    const uint     innerColA = threadIdx.x % (BK / 4);
+    constexpr uint strideA   = (N_THREADS * 4) / BK;
     // thread arrangement for moving the B block tile from global mem to shared mem
-    const uint innerRowB = threadIdx.x / (BN / 4);
-    const uint innerColB = threadIdx.x % (BN / 4);
-    constexpr uint strideB = N_THREADS / (BN / 4);
+    const uint     innerRowB = threadIdx.x / (BN / 4);
+    const uint     innerColB = threadIdx.x % (BN / 4);
+    constexpr uint strideB   = N_THREADS / (BN / 4);
 
     // allocate the register for thread tiling
     float threadResults[TM * WMITER * TN * WNITER] = {0.0};
-    float regM[TM * WMITER] = {0.0};
-    float regN[TN * WNITER] = {0.0};
+    float regM[TM * WMITER]                        = {0.0};
+    float regN[TN * WNITER]                        = {0.0};
 
     // loop through the chunks
     for (uint chunk{0}; chunk < K; chunk += BK) {
@@ -192,25 +192,25 @@ void host_warpTiling(
   at::Tensor &a,
   at::Tensor &b,
   at::Tensor &c,
-  float *d_a,
-  float *d_b,
-  float *d_c,
-  int M,
-  int N,
-  int K) {
+  float      *d_a,
+  float      *d_b,
+  float      *d_c,
+  int         M,
+  int         N,
+  int         K) {
     const uint N_THREADS = 128;
     // block level
     const uint BM = 128;
     const uint BN = 128;
     const uint BK = 16;
     // warp level
-    const uint WM = 64;
-    const uint WN = 64;
+    const uint WM     = 64;
+    const uint WN     = 64;
     const uint WNITER = 4;
     // thread level
-    const uint TM = 8;
-    const uint TN = 4;
-    auto nBytes = a.numel() * a.element_size();
+    const uint TM     = 8;
+    const uint TN     = 4;
+    auto       nBytes = a.numel() * a.element_size();
 
     // execution configuration
     dim3 block(N_THREADS);
@@ -237,7 +237,7 @@ int main() {
     auto C = at::rand({M, N}, at::TensorOptions().dtype(at::kFloat));
 
     float *d_A, *d_B, *d_C;
-    auto nBytes = A.numel() * A.element_size();
+    auto   nBytes = A.numel() * A.element_size();
 
     cudaMalloc((void **)&d_A, nBytes);
     cudaMalloc((void **)&d_B, nBytes);
@@ -245,7 +245,7 @@ int main() {
 
     cudaMemcpy(d_A, A.data_ptr(), nBytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B.data_ptr(), nBytes, cudaMemcpyHostToDevice);
-    
+
     host_warpTiling(A, B, C, d_A, d_B, d_C, M, N, K);
 
     // free the memory
