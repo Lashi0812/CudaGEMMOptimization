@@ -226,33 +226,33 @@ struct MainLoop {
     };
 
     template <typename TensorA, typename TensorB, typename TensorC>
-    CUTE_DEVICE void operator()(TensorA gA, TensorB gB, TensorC gC, char *smem) {
+    CUTE_DEVICE void operator()(TensorA gA, TensorB gB, TensorC gC, char *smem, uint threadId) {
         SharedStorage &storage = *reinterpret_cast<SharedStorage *>(smem);
 
         auto           sA = make_tensor(make_smem_ptr(storage.smem_a.data()), Layout_SA{});
         auto           sB = make_tensor(make_smem_ptr(storage.smem_b.data()), Layout_SB{});
         GS_TiledCopy_A gs_tiledCopy_A;
-        auto           gs_thr_copy_A = gs_tiledCopy_A.get_thread_slice(threadIdx.x);
+        auto           gs_thr_copy_A = gs_tiledCopy_A.get_thread_slice(threadId);
         auto           tAgA          = gs_thr_copy_A.partition_S(gA);
         auto           tAsA          = gs_thr_copy_A.partition_D(sA);
 
         GS_TiledCopy_B gs_tiledCopy_B;
-        auto           gs_thr_copy_B = gs_tiledCopy_B.get_thread_slice(threadIdx.x);
+        auto           gs_thr_copy_B = gs_tiledCopy_B.get_thread_slice(threadId);
         auto           tBgB          = gs_thr_copy_B.partition_S(gB);
         auto           tBsB          = gs_thr_copy_B.partition_D(sB);
 
         TiledMMA_ tiledMAA;
-        auto      thr_mma = tiledMAA.get_thread_slice(threadIdx.x);
+        auto      thr_mma = tiledMAA.get_thread_slice(threadId);
         auto      tCrA    = thr_mma.partition_fragment_A(sA);
         auto      tCrB    = thr_mma.partition_fragment_B(sB);
         auto      tCrC    = thr_mma.partition_C(gC);
 
         SR_TiledCopy_A sr_tiledCopy_A;
-        auto           sr_thr_copy_A = sr_tiledCopy_A.get_thread_slice(threadIdx.x);
+        auto           sr_thr_copy_A = sr_tiledCopy_A.get_thread_slice(threadId);
         auto           tCsA          = sr_thr_copy_A.partition_S(sA);
         auto           tCrA_view     = sr_thr_copy_A.retile_D(tCrA);
         SR_TiledCopy_B sr_tiledCopy_B;
-        auto           sr_thr_copy_B = sr_tiledCopy_B.get_thread_slice(threadIdx.x);
+        auto           sr_thr_copy_B = sr_tiledCopy_B.get_thread_slice(threadId);
         auto           tCsB          = sr_thr_copy_B.partition_S(sB);
         auto           tCrB_view     = sr_thr_copy_B.retile_D(tCrB);
 
@@ -260,27 +260,27 @@ struct MainLoop {
         clear(fragC);
 
         // if (thread0()) {
-            //     // clang-format off
-            //     print("sA            : ");print(sA           );print("\n");
-            //     print("sB            : ");print(sB           );print("\n");
-            //     print("gs_thr_copy_A : ");print(gs_thr_copy_A);print("\n");
-            //     print("tAgA          : ");print(tAgA         );print("\n");
-            //     print("tAsA          : ");print(tAsA         );print("\n");
-            //     print("gs_thr_copy_B : ");print(gs_thr_copy_B);print("\n");
-            //     print("tBgB          : ");print(tBgB         );print("\n");
-            //     print("tBsB          : ");print(tBsB         );print("\n");
-            //     print("thr_mma       : ");print(thr_mma      );print("\n");
-            //     print("tCrA          : ");print(tCrA         );print("\n");
-            //     print("tCrB          : ");print(tCrB         );print("\n");
-            //     print("tCrC          : ");print(tCrC         );print("\n");
-            //     print("sr_thr_copy_A : ");print(sr_thr_copy_A);print("\n");
-            //     print("tCsA          : ");print(tCsA         );print("\n");
-            //     print("tCrA_view     : ");print(tCrA_view    );print("\n");
-            //     print("sr_thr_copy_B : ");print(sr_thr_copy_B);print("\n");
-            //     print("tCsB          : ");print(tCsB         );print("\n");
-            //     print("tCrB_view     : ");print(tCrB_view    );print("\n");
-            //     print("fragC         : ");print(fragC        );print("\n");
-            //     // clang-format on
+        //         // clang-format off
+        //         print("sA            : ");print(sA           );print("\n");
+        //         print("sB            : ");print(sB           );print("\n");
+        //         print("gs_thr_copy_A : ");print(gs_thr_copy_A);print("\n");
+        //         print("tAgA          : ");print(tAgA         );print("\n");
+        //         print("tAsA          : ");print(tAsA         );print("\n");
+        //         print("gs_thr_copy_B : ");print(gs_thr_copy_B);print("\n");
+        //         print("tBgB          : ");print(tBgB         );print("\n");
+        //         print("tBsB          : ");print(tBsB         );print("\n");
+        //         print("thr_mma       : ");print(thr_mma      );print("\n");
+        //         print("tCrA          : ");print(tCrA         );print("\n");
+        //         print("tCrB          : ");print(tCrB         );print("\n");
+        //         print("tCrC          : ");print(tCrC         );print("\n");
+        //         print("sr_thr_copy_A : ");print(sr_thr_copy_A);print("\n");
+        //         print("tCsA          : ");print(tCsA         );print("\n");
+        //         print("tCrA_view     : ");print(tCrA_view    );print("\n");
+        //         print("sr_thr_copy_B : ");print(sr_thr_copy_B);print("\n");
+        //         print("tCsB          : ");print(tCsB         );print("\n");
+        //         print("tCrB_view     : ");print(tCrB_view    );print("\n");
+        //         print("fragC         : ");print(fragC        );print("\n");
+        //         // clang-format on
         // }
 
         for (int k_tile_iter{0}; k_tile_iter < size<2>(gA); ++k_tile_iter) {
@@ -355,20 +355,20 @@ struct KernelOperator {
         auto gC = local_tile(mC, blk_shape, blk_coord, Step<_1, _1, X>{});
 
         // if (thread0()) {
-            //     // clang-format off
-            //     print("mA        : ");print(mA       );print("\n");
-            //     print("mB        : ");print(mB       );print("\n");
-            //     print("mC        : ");print(mC       );print("\n");
-            //     print("blk_shape : ");print(blk_shape);print("\n");
-            //     print("blk_coord : ");print(blk_coord);print("\n");
-            //     print("gA        : ");print(gA       );print("\n");
-            //     print("gB        : ");print(gB       );print("\n");
-            //     print("gC        : ");print(gC       );print("\n");
-            //     // clang-format on
+        //         // clang-format off
+        //         print("mA        : ");print(mA       );print("\n");
+        //         print("mB        : ");print(mB       );print("\n");
+        //         print("mC        : ");print(mC       );print("\n");
+        //         print("blk_shape : ");print(blk_shape);print("\n");
+        //         print("blk_coord : ");print(blk_coord);print("\n");
+        //         print("gA        : ");print(gA       );print("\n");
+        //         print("gB        : ");print(gB       );print("\n");
+        //         print("gC        : ");print(gC       );print("\n");
+        //         // clang-format on
         // }
 
         MainLoop mainLoop;
-        mainLoop(gA, gB, gC, smem);
+        mainLoop(gA, gB, gC, smem, threadIdx.x);
     }
 };
 
@@ -643,7 +643,7 @@ void host_warpTiling(
     cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost);
 
     // check the answer
-    std::cout << (c.allclose(a.matmul(b)) ? "SUCCESS" : "FAIL") << std::endl;
+    std::cout << (c.allclose(a.matmul(b.mT())) ? "SUCCESS" : "FAIL") << std::endl;
 }
 
 template <typename TA, typename TB, typename TC>
