@@ -260,27 +260,27 @@ struct MainLoop {
         clear(fragC);
 
         // if (thread0()) {
-        //     // clang-format off
-        //     print("sA            : ");print(sA           );print("\n");
-        //     print("sB            : ");print(sB           );print("\n");
-        //     print("gs_thr_copy_A : ");print(gs_thr_copy_A);print("\n");
-        //     print("tAgA          : ");print(tAgA         );print("\n");
-        //     print("tAsA          : ");print(tAsA         );print("\n");
-        //     print("gs_thr_copy_B : ");print(gs_thr_copy_B);print("\n");
-        //     print("tBgB          : ");print(tBgB         );print("\n");
-        //     print("tBsB          : ");print(tBsB         );print("\n");
-        //     print("thr_mma       : ");print(thr_mma      );print("\n");
-        //     print("tCrA          : ");print(tCrA         );print("\n");
-        //     print("tCrB          : ");print(tCrB         );print("\n");
-        //     print("tCrC          : ");print(tCrC         );print("\n");
-        //     print("sr_thr_copy_A : ");print(sr_thr_copy_A);print("\n");
-        //     print("tCsA          : ");print(tCsA         );print("\n");
-        //     print("tCrA_view     : ");print(tCrA_view    );print("\n");
-        //     print("sr_thr_copy_B : ");print(sr_thr_copy_B);print("\n");
-        //     print("tCsB          : ");print(tCsB         );print("\n");
-        //     print("tCrB_view     : ");print(tCrB_view    );print("\n");
-        //     print("fragC         : ");print(fragC        );print("\n");
-        //     // clang-format on
+            //     // clang-format off
+            //     print("sA            : ");print(sA           );print("\n");
+            //     print("sB            : ");print(sB           );print("\n");
+            //     print("gs_thr_copy_A : ");print(gs_thr_copy_A);print("\n");
+            //     print("tAgA          : ");print(tAgA         );print("\n");
+            //     print("tAsA          : ");print(tAsA         );print("\n");
+            //     print("gs_thr_copy_B : ");print(gs_thr_copy_B);print("\n");
+            //     print("tBgB          : ");print(tBgB         );print("\n");
+            //     print("tBsB          : ");print(tBsB         );print("\n");
+            //     print("thr_mma       : ");print(thr_mma      );print("\n");
+            //     print("tCrA          : ");print(tCrA         );print("\n");
+            //     print("tCrB          : ");print(tCrB         );print("\n");
+            //     print("tCrC          : ");print(tCrC         );print("\n");
+            //     print("sr_thr_copy_A : ");print(sr_thr_copy_A);print("\n");
+            //     print("tCsA          : ");print(tCsA         );print("\n");
+            //     print("tCrA_view     : ");print(tCrA_view    );print("\n");
+            //     print("sr_thr_copy_B : ");print(sr_thr_copy_B);print("\n");
+            //     print("tCsB          : ");print(tCsB         );print("\n");
+            //     print("tCrB_view     : ");print(tCrB_view    );print("\n");
+            //     print("fragC         : ");print(fragC        );print("\n");
+            //     // clang-format on
         // }
 
         for (int k_tile_iter{0}; k_tile_iter < size<2>(gA); ++k_tile_iter) {
@@ -296,7 +296,7 @@ struct MainLoop {
             gemm(tiledMAA, fragC, tCrA, tCrB, fragC);
             __syncthreads();
         }
-        copy_aligned(fragC, tCrC);
+        copy(AutoVectorizingCopyWithAssumedAlignment<128>{}, fragC, tCrC);
     }
 };
 
@@ -355,16 +355,16 @@ struct KernelOperator {
         auto gC = local_tile(mC, blk_shape, blk_coord, Step<_1, _1, X>{});
 
         // if (thread0()) {
-        //     // clang-format off
-        //     print("mA        : ");print(mA       );print("\n");
-        //     print("mB        : ");print(mB       );print("\n");
-        //     print("mC        : ");print(mC       );print("\n");
-        //     print("blk_shape : ");print(blk_shape);print("\n");
-        //     print("blk_coord : ");print(blk_coord);print("\n");
-        //     print("gA        : ");print(gA       );print("\n");
-        //     print("gB        : ");print(gB       );print("\n");
-        //     print("gC        : ");print(gC       );print("\n");
-        //     // clang-format on
+            //     // clang-format off
+            //     print("mA        : ");print(mA       );print("\n");
+            //     print("mB        : ");print(mB       );print("\n");
+            //     print("mC        : ");print(mC       );print("\n");
+            //     print("blk_shape : ");print(blk_shape);print("\n");
+            //     print("blk_coord : ");print(blk_coord);print("\n");
+            //     print("gA        : ");print(gA       );print("\n");
+            //     print("gB        : ");print(gB       );print("\n");
+            //     print("gC        : ");print(gC       );print("\n");
+            //     // clang-format on
         // }
 
         MainLoop mainLoop;
@@ -651,7 +651,7 @@ void host_warpTiling_using_cute(
   at::Tensor &a, at::Tensor &b, at::Tensor &c, TA *d_a, TB *d_b, TC *d_c, int M, int N, int K) {
 
     auto problemShapeMNK = make_shape(M, N, K);
-    using Config = GemmConfig<TA, TC, _16, SM80_16x8x8_F32TF32TF32F32_TN, GenRowMajor, GenColMajor>;
+    using Config = GemmConfig<TA, TC, _32, SM80_16x8x8_F32TF32TF32F32_TN, GenRowMajor, GenColMajor>;
     using Loop   = MainLoop<Config>;
     using Operator = KernelOperator<Shape<int, int, int>, Loop>;
     using Adapter  = KernelAdapter<Operator>;
@@ -673,7 +673,7 @@ void host_warpTiling_using_cute(
 int main(int argc, char *argv[]) {
     int M{128};
     int N{128};
-    int K{16};
+    int K{32};
     if (argc >= 2) {
         M = atoi(argv[1]);
         N = atoi(argv[2]);
@@ -693,7 +693,7 @@ int main(int argc, char *argv[]) {
     cudaMemcpy(d_A, A.data_ptr(), A.numel() * A.element_size(), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B.data_ptr(), B.numel() * B.element_size(), cudaMemcpyHostToDevice);
 
-    // host_warpTiling(A, B, C, d_A, d_B, d_C, M, N, K);
+    host_warpTiling(A, B, C, d_A, d_B, d_C, M, N, K);
     host_warpTiling_using_cute(A, B, C, d_A, d_B, d_C, M, N, K);
 
     // free the memory

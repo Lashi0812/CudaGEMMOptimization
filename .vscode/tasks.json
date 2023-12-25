@@ -16,8 +16,9 @@
 		},
         {
             "label": "Metric Profile Section for GEMM Compute Load",
-            "command": "ncu",
-            "args": [
+            "type": "shell",
+            "command": [
+                "ncu",
                 "-f",
                 "-o",
                 "./profiling/profiles/${input:executable}",
@@ -27,7 +28,8 @@
                 "kernel",
                 "--config-file-path",
                 "./profiling/configs/sgemm.ncu-cfg",
-                "./build/${input:executable}"
+                "./build/${input:executable}",
+                "${input:mnk}"
             ],
             "group": "build",
             "dependsOn": [
@@ -38,7 +40,7 @@
         {
             "label": "Run Executable",
             "type": "shell",
-            "command": "./build/${input:executable}",
+            "command": "./build/${input:executable} ${input:mnk}",
             "group": "build",
 			"detail": "Select Executable to Run",
             "dependsOn": [
@@ -73,6 +75,12 @@
                 "cwd": "${workspaceFolder}/build",
                 "description": "select executable for profile",
             }
+        },
+        {
+            "type": "promptString",
+            "id": "mnk",
+            "description": "enter mnk with space",
+            "default": ""
         }
     ]
 }
