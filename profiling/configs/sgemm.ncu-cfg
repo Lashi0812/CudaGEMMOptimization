@@ -1,5 +1,6 @@
 [Launch-and-attach]
 -f
 --import-source	= yes
---section = LoadMetrics,StoreMetrics,SchedulerStats,WarpStateStats,MemoryWorkloadAnalysis,MemoryWorkloadAnalysis_Chart,MemoryWorkloadAnalysis_Tables,SpeedOfLight,InstructionStats,ComputeWorkloadAnalysis,SpeedOfLight_RooflineChart,SourceCounters
+--target-processes = all
+--section = ComputeWorkloadAnalysis,DeviceMemoryTable,FrameBufferPartition,InstructionStats,LaunchStats,LoadMetrics,MemoryCheck,MemoryWorkloadAnalysis,MemoryWorkloadAnalysis_Chart,MemoryWorkloadAnalysis_Tables,Occupancy,PipelineStats,SchedulerStats,SharedMemAnalysis,SourceCounters,SpeedOfLight,SpeedOfLight_HierarchicalDoubleRooflineChart,SpeedOfLight_HierarchicalHalfRooflineChart,SpeedOfLight_HierarchicalSingleRooflineChart,SpeedOfLight_HierarchicalTensorRooflineChart,SpeedOfLight_RooflineChart,StoreMetrics,WarpStateStats,
 --section-folder-recursive = /workspaces/CudaGEMMOptimization/profiling/sections/

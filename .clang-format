@@ -5,6 +5,7 @@ ContinuationIndentWidth: 2
 ColumnLimit: 100
 AlignAfterOpenBracket: AlwaysBreak
 AlignTrailingComments: true
+SpacesBeforeTrailingComments: 15
 AlignConsecutiveMacros: true
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
