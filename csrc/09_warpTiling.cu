@@ -1,3 +1,5 @@
+#include "cute/arch/mma_sm80.hpp"
+#include "cute/numeric/half.hpp"
 #include "cute/tensor.hpp"
 #include "cute/int_tuple.hpp"
 #include "cute/numeric/tfloat.hpp"
@@ -6,6 +8,7 @@
 #include "cute/atom/mma_atom.hpp"
 #include "cute/atom/mma_traits.hpp"
 #include <ATen/ATen.h>
+#include <c10/core/ScalarType.h>
 #include <iostream>
 #include "cute/arch/copy_sm75.hpp"
 #include "cute/arch/copy_sm80.hpp"
@@ -17,6 +20,16 @@
 #include "cute/swizzle.hpp"
 #include "cute/underscore.hpp"
 #include "cute/util/debug.hpp"
+
+#define CUDA_CHECK(status)                                                                         \
+    {                                                                                              \
+        cudaError_t error = status;                                                                \
+        if (error != cudaSuccess) {                                                                \
+            std::cerr << "Got bad cuda status: " << cudaGetErrorString(error)                      \
+                      << " at line: " << __LINE__ << std::endl;                                    \
+            exit(EXIT_FAILURE);                                                                    \
+        }                                                                                          \
+    }
 
 using namespace cute;
 using X = Underscore;
@@ -633,14 +646,14 @@ void host_warpTiling(
     // execution configuration
     dim3 block(N_THREADS);
     dim3 grid(CEIL_DIV(M, BM), CEIL_DIV(N, BN));
-    cudaMemset(d_c, 0, c.numel() * c.element_size());
+    CUDA_CHECK(cudaMemset(d_c, 0, c.numel() * c.element_size()));
 
     // launch the kernel
     warpTile<BM, BN, BK, WM, WN, WNITER, TM, TN, N_THREADS>
       <<<grid, block>>>(d_a, d_b, d_c, M, N, K);
 
     // copy the result
-    cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost));
 
     // check the answer
     std::cout << (c.allclose(a.matmul(b.mT())) ? "SUCCESS" : "FAIL") << std::endl;
@@ -651,23 +664,23 @@ void host_warpTiling_using_cute(
   at::Tensor &a, at::Tensor &b, at::Tensor &c, TA *d_a, TB *d_b, TC *d_c, int M, int N, int K) {
 
     auto problemShapeMNK = make_shape(M, N, K);
-    using Config = GemmConfig<TA, TC, _32, SM80_16x8x8_F32TF32TF32F32_TN, GenRowMajor, GenColMajor>;
+    using Config = GemmConfig<TA, TC, _32, SM80_16x8x16_F16F16F16F16_TN, GenRowMajor, GenColMajor>;
     using Loop   = MainLoop<Config>;
     using Operator = KernelOperator<Shape<int, int, int>, Loop>;
     using Adapter  = KernelAdapter<Operator>;
     Adapter ap;
 
-    cudaMemset(d_c, 0, c.numel() * c.element_size());
+    CUDA_CHECK(cudaMemset(d_c, 0, c.numel() * c.element_size()));
     ap.run(problemShapeMNK, d_a, d_b, d_c);
-    cudaDeviceSynchronize();
-    cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost));
 
     auto cpu_ans = (a.matmul(b.mT()));
 
-    std::cout << (c.allclose(cpu_ans, 1e-02) ? "MMA Success" : "MMA Failed") << std::endl;
+    std::cout << (c.allclose(cpu_ans, 1e-01) ? "MMA Success" : "MMA Failed") << std::endl;
     // std::cout << cpu_ans << std::endl;
     // std::cout << c << std::endl;
-    // std::cout << (c.isclose(cpu_ans, 1e-02)) << std::endl;
+    std::cout << (c.isclose(cpu_ans, 1e-02)) << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -680,25 +693,25 @@ int main(int argc, char *argv[]) {
         K = atoi(argv[3]);
     }
 
-    auto A = at::rand({M, K}, at::TensorOptions().dtype(at::kFloat));
-    auto B = at::rand({N, K}, at::TensorOptions().dtype(at::kFloat));
-    auto C = at::rand({M, N}, at::TensorOptions().dtype(at::kFloat));
+    auto A = at::rand({M, K}, at::TensorOptions().dtype(at::kHalf));
+    auto B = at::rand({N, K}, at::TensorOptions().dtype(at::kHalf));
+    auto C = at::rand({M, N}, at::TensorOptions().dtype(at::kHalf));
 
-    float *d_A, *d_B, *d_C;
+    half_t *d_A, *d_B, *d_C;
 
-    cudaMalloc((void **)&d_A, A.numel() * A.element_size());
-    cudaMalloc((void **)&d_B, B.numel() * B.element_size());
-    cudaMalloc((void **)&d_C, C.numel() * C.element_size());
+    CUDA_CHECK(cudaMalloc((void **)&d_A, A.numel() * A.element_size()));
+    CUDA_CHECK(cudaMalloc((void **)&d_B, B.numel() * B.element_size()));
+    CUDA_CHECK(cudaMalloc((void **)&d_C, C.numel() * C.element_size()));
 
-    cudaMemcpy(d_A, A.data_ptr(), A.numel() * A.element_size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, B.data_ptr(), B.numel() * B.element_size(), cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(d_A, A.data_ptr(), A.numel() * A.element_size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B, B.data_ptr(), B.numel() * B.element_size(), cudaMemcpyHostToDevice));
 
-    host_warpTiling(A, B, C, d_A, d_B, d_C, M, N, K);
+    // host_warpTiling(A, B, C, d_A, d_B, d_C, M, N, K);
     host_warpTiling_using_cute(A, B, C, d_A, d_B, d_C, M, N, K);
 
     // free the memory
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
-    cudaDeviceReset();
+    CUDA_CHECK(cudaFree(d_A));
+    CUDA_CHECK(cudaFree(d_B));
+    CUDA_CHECK(cudaFree(d_C));
+    CUDA_CHECK(cudaDeviceReset());
 }
