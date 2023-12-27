@@ -181,7 +181,7 @@ struct GemmConfig {
     using StrideB                 = TagToStrideB_t<BMajor>;
     using StrideC                 = TagToStrideC_t<GenRowMajor>;
     using TileShape               = Shape<_128, _128, sizeBK>;
-    static int constexpr Stages   = 3;
+    static int constexpr Stages   = 4;
     static int constexpr ThrCount = 128;
     using LdMatrixElemShapeMNK    = Shape<_16, _16, Int<(16 * 2) / sizeof(TA)>>;
     using ValShape                = decltype(transform(
@@ -457,7 +457,9 @@ struct KernelOperator {
 };
 
 template <typename Operator>
-__global__ void kernel_mma(typename Operator::Params params) {
+__global__
+__launch_bounds__(Operator::MaxThreadsPerBlock) void kernel_mma(CUTE_GRID_CONSTANT
+                                                                typename Operator::Params const params) {
     extern __shared__ char smem[];
     Operator               op;
     op(params, smem);
@@ -519,7 +521,7 @@ void host_warpTiling_using_cute(
   at::Tensor &a, at::Tensor &b, at::Tensor &c, TA *d_a, TB *d_b, TC *d_c, int M, int N, int K) {
 
     auto problemShapeMNK = make_shape(M, N, K);
-    using Config = GemmConfig<TA, TC, _32, SM80_16x8x8_F32TF32TF32F32_TN, GenRowMajor, GenColMajor>;
+    using Config = GemmConfig<TA, TC, _32, SM80_16x8x16_F16F16F16F16_TN, GenRowMajor, GenColMajor>;
     using Loop   = MainLoop<Config>;
     using Operator = KernelOperator<Shape<int, int, int>, Loop>;
     using Adapter  = KernelAdapter<Operator>;
@@ -530,9 +532,9 @@ void host_warpTiling_using_cute(
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost));
 
-    auto cpu_ans = (a.matmul(b.mT()));
+    auto cpu_ans = (a.to(at::kCUDA).matmul(b.mT().to(at::kCUDA))).to(at::kCPU);
 
-    std::cout << (c.allclose(cpu_ans, 1e-02) ? "MMA Success" : "MMA Failed") << std::endl;
+    std::cout << (c.allclose(cpu_ans, 1e-01) ? "MMA Success" : "MMA Failed") << std::endl;
     // std::cout << cpu_ans << std::endl;
     // std::cout << c << std::endl;
     // std::cout << (c.isclose(cpu_ans, 1e-02)) << std::endl;
@@ -548,11 +550,11 @@ int main(int argc, char *argv[]) {
         K = atoi(argv[3]);
     }
 
-    auto A = at::rand({M, K}, at::TensorOptions().dtype(at::kFloat));
-    auto B = at::rand({N, K}, at::TensorOptions().dtype(at::kFloat));
-    auto C = at::rand({M, N}, at::TensorOptions().dtype(at::kFloat));
+    auto A = at::rand({M, K}, at::TensorOptions().dtype(at::kHalf));
+    auto B = at::rand({N, K}, at::TensorOptions().dtype(at::kHalf));
+    auto C = at::rand({M, N}, at::TensorOptions().dtype(at::kHalf));
 
-    float *d_A, *d_B, *d_C;
+    half_t *d_A, *d_B, *d_C;
 
     CUDA_CHECK(cudaMalloc((void **)&d_A, A.numel() * A.element_size()));
     CUDA_CHECK(cudaMalloc((void **)&d_B, B.numel() * B.element_size()));

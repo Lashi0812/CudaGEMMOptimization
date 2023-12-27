@@ -1,6 +1,6 @@
+#include "cute/tensor.hpp"
 #include "cute/arch/mma_sm80.hpp"
 #include "cute/numeric/half.hpp"
-#include "cute/tensor.hpp"
 #include "cute/int_tuple.hpp"
 #include "cute/numeric/tfloat.hpp"
 #include "cute/algorithm/functional.hpp"
