@@ -1,4 +1,6 @@
 #include "cute/algorithm/copy.hpp"
+#include "cute/arch/mma_sm80.hpp"
+#include "cute/numeric/half.hpp"
 #include "cute/numeric/integer_sequence.hpp"
 #include "cute/tensor.hpp"
 #include "cute/int_tuple.hpp"
@@ -7,6 +9,7 @@
 #include "cute/atom/mma_atom.hpp"
 #include "cute/atom/mma_traits.hpp"
 #include <ATen/ATen.h>
+#include <c10/core/ScalarType.h>
 #include <iostream>
 #include "cute/arch/copy_sm75.hpp"
 #include "cute/arch/copy_sm80.hpp"
@@ -18,6 +21,16 @@
 #include "cute/swizzle.hpp"
 #include "cute/underscore.hpp"
 #include "cute/util/debug.hpp"
+
+#define CUDA_CHECK(status)                                                                         \
+    {                                                                                              \
+        cudaError_t error = status;                                                                \
+        if (error != cudaSuccess) {                                                                \
+            std::cerr << "Got bad cuda status: " << cudaGetErrorString(error)                      \
+                      << " at line: " << __LINE__ << std::endl;                                    \
+            exit(EXIT_FAILURE);                                                                    \
+        }                                                                                          \
+    }
 
 using namespace cute;
 using X = Underscore;
@@ -61,13 +74,13 @@ struct TagToStrideA {
 
 template <>
 struct TagToStrideA<GenRowMajor> {
-    using type = Stride<int32_t, Int<1>>;
+    using type = Stride<int64_t, Int<1>>;
 };
 
 // Maps to modes [M, K, L]
 template <>
 struct TagToStrideA<GenColMajor> {
-    using type = Stride<Int<1>, int32_t>;
+    using type = Stride<Int<1>, int64_t>;
 };
 
 template <class L>
@@ -77,12 +90,12 @@ struct TagToStrideB {
 
 template <>
 struct TagToStrideB<GenRowMajor> {
-    using type = Stride<Int<1>, int32_t>;
+    using type = Stride<Int<1>, int64_t>;
 };
 
 template <>
 struct TagToStrideB<GenColMajor> {
-    using type = Stride<int32_t, Int<1>>;
+    using type = Stride<int64_t, Int<1>>;
 };
 
 template <class LayoutTag>
@@ -485,8 +498,8 @@ struct KernelAdapter {
         params_       = Operator::to_underlying_arguments(args);
         int smem_size = sizeof(typename Loop::SharedStorage{});
 
-        cudaFuncSetAttribute(
-          kernel_mma<Operator>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+        CUDA_CHECK(cudaFuncSetAttribute(
+          kernel_mma<Operator>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size));
     }
 
     void run(ProblemShapeMNK problem_size, TA const *d_A, TB const *d_B, TC *d_C) {
@@ -512,10 +525,10 @@ void host_warpTiling_using_cute(
     using Adapter  = KernelAdapter<Operator>;
     Adapter ap;
 
-    cudaMemset(d_c, 0, c.numel() * c.element_size());
+    CUDA_CHECK(cudaMemset(d_c, 0, c.numel() * c.element_size()));
     ap.run(problemShapeMNK, d_a, d_b, d_c);
-    cudaDeviceSynchronize();
-    cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(c.data_ptr(), d_c, c.numel() * c.element_size(), cudaMemcpyDeviceToHost));
 
     auto cpu_ans = (a.matmul(b.mT()));
 
@@ -541,18 +554,18 @@ int main(int argc, char *argv[]) {
 
     float *d_A, *d_B, *d_C;
 
-    cudaMalloc((void **)&d_A, A.numel() * A.element_size());
-    cudaMalloc((void **)&d_B, B.numel() * B.element_size());
-    cudaMalloc((void **)&d_C, C.numel() * C.element_size());
+    CUDA_CHECK(cudaMalloc((void **)&d_A, A.numel() * A.element_size()));
+    CUDA_CHECK(cudaMalloc((void **)&d_B, B.numel() * B.element_size()));
+    CUDA_CHECK(cudaMalloc((void **)&d_C, C.numel() * C.element_size()));
 
-    cudaMemcpy(d_A, A.data_ptr(), A.numel() * A.element_size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, B.data_ptr(), B.numel() * B.element_size(), cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(d_A, A.data_ptr(), A.numel() * A.element_size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B, B.data_ptr(), B.numel() * B.element_size(), cudaMemcpyHostToDevice));
 
     host_warpTiling_using_cute(A, B, C, d_A, d_B, d_C, M, N, K);
 
     // free the memory
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
-    cudaDeviceReset();
+    CUDA_CHECK(cudaFree(d_A));
+    CUDA_CHECK(cudaFree(d_B));
+    CUDA_CHECK(cudaFree(d_C));
+    CUDA_CHECK(cudaDeviceReset());
 }
